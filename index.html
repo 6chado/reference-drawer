@@ -1378,8 +1378,8 @@ function renderDD(){
   pop.innerHTML = `<div class="dd-head">${g.label}${searchable ? `<input type="search" id="ddQ" placeholder="찾기" value="${esc(pop.dataset.q || "")}" autocomplete="off">` : ""}</div>
     <div class="dd-list">${list.map(i => `<button class="dd-item ${view.filter === i.key ? "on" : ""}" data-k="${esc(i.key)}">${mark(i)}<span class="nm">${esc(i.label)}</span><span class="n">${i.n}</span></button>`).join("") || `<div class="dd-empty">${q ? "찾는 항목이 없어요" : "아직 없어요"}</div>`}${noneIt}</div>
     <div class="dd-foot">${g.key === "topic" ? `<button data-newcat-nav>${svg("plus")}새 태그</button>` : ""}<button data-editcats>${svg("pencil2")}편집</button></div>`;
-  const opening = pop.hidden || pop.classList.contains("anim-out") || pop.dataset.k !== g.key;
-  pop.dataset.k = g.key;
+  const opening = pop.hidden || pop.classList.contains("anim-out") || pop.dataset.g !== g.key;
+  pop.dataset.g = g.key;
   clearTimeout(pop._t); pop.classList.remove("anim-out");
   pop.hidden = false;
   [...pop.querySelectorAll(".dd-head,.dd-item,.dd-foot")].forEach((el, i) => el.style.setProperty("--i", Math.min(i, 12)));
@@ -1394,7 +1394,7 @@ function renderDD(){
   const qi = $("#ddQ"); if (qi){ qi.oninput = () => { pop.dataset.q = qi.value; renderDD(); const n = $("#ddQ"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }; }
 }
 function closeDD(){
-  ddOpen = null; const pop = $("#ddPop"); pop.dataset.q = ""; pop.dataset.k = "";
+  ddOpen = null; const pop = $("#ddPop"); pop.dataset.q = ""; pop.dataset.g = "";
   $$("#barCats .dd.open").forEach(b => b.classList.remove("open"));
   if (pop.hidden || pop.classList.contains("anim-out")) return;
   pop.classList.remove("anim-in"); pop.classList.add("anim-out");
