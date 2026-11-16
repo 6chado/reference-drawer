@@ -44,7 +44,7 @@
       <div class="rd-t">${again ? "다시 로그인해 주세요" : "레퍼런스 서랍"}</div>
       <p>${again ? "로그인 시간이 지났어요. 버튼을 누르면 하던 작업이 이어져요." : "그림과 링크는 내 구글 드라이브의 '레퍼런스 서랍' 폴더에 저장돼요. 다른 사람은 볼 수 없어요."}</p>
       <button type="button" class="rd-btn">구글로 로그인</button>
-      <p class="rd-err" hidden></p></div>`;
+      <p class="rd-err" hidden></p>${window.REQUEST_FORM_URL && !/여기에/.test(window.REQUEST_FORM_URL) ? `<a class="rd-req" href="${window.REQUEST_FORM_URL}" target="_blank" rel="noopener">처음 쓰나요? 사용 신청하기</a>` : ""}</div>`;
     document.body.appendChild(el);
     const btn = el.querySelector(".rd-btn"), err = el.querySelector(".rd-err");
     let resolve; const p = new Promise(r => resolve = r);
@@ -55,7 +55,7 @@
         await new Promise((res, rej) => { waiters.push({ res, rej }); c.requestAccessToken({ prompt: again ? "" : "" }); });
         el.remove(); gate = null; resolve();
       } catch (e) {
-        err.textContent = "로그인하지 못했어요. 팝업이 막혀 있지 않은지 확인하고 다시 눌러 주세요."; err.hidden = false;
+        err.textContent = (e && (e.error === "access_denied" || e.type === "popup_closed")) ? "로그인이 안 됐어요. 아직 등록되지 않은 계정이면 아래 '사용 신청하기'로 신청해 주세요." : "로그인하지 못했어요. 팝업이 막혀 있지 않은지 확인하고 다시 눌러 주세요."; err.hidden = false;
       }
       btn.disabled = false;
     };
@@ -67,7 +67,8 @@
   #rdGate .rd-card{max-width:360px;width:100%;background:var(--surface,#fff);border:1px solid var(--line,#ddd);border-radius:16px;padding:24px;text-align:center;color:var(--ink,#222)}
   #rdGate .rd-t{font-size:20px;font-weight:600;margin-bottom:8px}#rdGate p{font-size:14px;line-height:1.6;color:var(--muted,#666);margin:0 0 16px}
   #rdGate .rd-btn{height:44px;padding:0 20px;border-radius:10px;border:0;background:var(--accent,#c4502a);color:var(--accent-ink,#fff);font:inherit;font-weight:600;cursor:pointer}
-  #rdGate .rd-err{color:#c0392b!important;margin:12px 0 0!important}`;
+  #rdGate .rd-err{color:#c0392b!important;margin:12px 0 0!important}
+  #rdGate .rd-req{display:inline-block;margin-top:16px;font-size:14px;color:var(--accent,#c4502a);text-decoration:underline}`;
   document.head.appendChild(style);
 
   async function api(url, opt = {}, retry = true){
