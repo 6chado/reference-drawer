@@ -252,6 +252,10 @@ body.selmode .card .star{display:none}
 /* ---------- buttons ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:15px;font-weight:500}
 .btn svg{width:18px;height:18px}
+.bk-btns{display:grid;gap:8px;margin-top:16px}
+.bk-btns .btn{width:100%}
+.bk-btns .btn svg{width:18px;height:18px}
+#bkMsg:empty{display:none}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.danger{color:#c0392b}
 .btn:disabled{opacity:.5;cursor:default}
@@ -850,6 +854,7 @@ body.selmode .links.compact .litem{padding-left:12px!important;padding-top:44px!
     <button class="nav-item" data-newcat-nav><span data-icon="plus"></span><span>태그 추가</span></button>
     <button class="nav-item" data-editcats><span data-icon="pencil2"></span><span>태그 이름·색 편집</span></button>
     <button class="nav-item" data-import><span data-icon="download"></span><span>X 북마크 가져오기</span></button>
+    <button class="nav-item" data-backup><span data-icon="upload"></span><span>백업·옮기기</span></button>
     <button class="nav-item" id="themeOpen"><span data-icon="palette"></span><span>테마 변경</span><span class="th-cur" id="thCur"></span></button>
     <div class="theme-row"><span id="themeLbl">화이트 모드</span><button class="tswitch" id="themeSw" role="switch" aria-checked="false" aria-label="다크 모드"><span class="k"></span><span class="e sun"><span data-icon="sun"></span></span><span class="e moon"><span data-icon="moon"></span></span></button></div>
     <div class="usage" id="usage" hidden></div>
@@ -1113,6 +1118,16 @@ body.selmode .links.compact .litem{padding-left:12px!important;padding-top:44px!
 </div>
 
 <div class="drop" id="drop" hidden><div>여기에 놓으면 추가돼요</div></div>
+<div class="modal" id="bkModal" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="bkTitle" style="width:min(460px,100%)">
+    <h2 id="bkTitle">백업·옮기기</h2>
+    <p class="hint" style="margin-top:0">그림, 링크, 메모, 태그, 서랍을 파일 하나로 저장해요. 다른 사이트(구글 드라이브 버전)에서 그 파일을 불러오면 그대로 옮겨져요. 이미 옮긴 항목은 다시 불러와도 건너뛰어요.</p>
+    <div class="bk-btns"><button class="btn" id="bkOut"><span data-icon="download"></span>백업 파일 만들기</button><button class="btn" id="bkIn"><span data-icon="upload"></span>백업 파일 불러오기</button></div>
+    <p class="hint" id="bkMsg" aria-live="polite"></p>
+    <input type="file" id="bkFile" accept=".json,application/json" hidden>
+    <div class="actions"><button class="btn primary" id="bkDone">닫기</button></div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -1154,6 +1169,7 @@ ICON.pencil = ICON.pencil2;
 ICON.tag = '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>';
 ICON.user = '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>';
 ICON.archive = '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>';
+ICON.upload = '<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>';
 ICON.download = '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>';
 ICON.sun = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>';
 ICON.moon = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
@@ -1269,6 +1285,7 @@ let links = [], linkById = new Map(), lcats = [];
 const DEF = "main";
 let drawers = [], ldrawers = [], mainName = "기본 서랍", lmainName = "기본 서랍", metaDocs = {};
 const DWC = { img:LS.get("drawer", DEF), link:LS.get("drawer_link", DEF) };
+let rawDocs = [];
 let allRefs = [], allLinks = [], byIdAll = new Map(), linkByIdAll = new Map();
 const catPath = (d = DWC.img) => d === DEF ? "meta/categories" : "meta/categories-" + d;
 const lcatPath = (d = DWC.link) => d === DEF ? "meta/linkCategories" : "meta/linkCategories-" + d;
@@ -1622,7 +1639,7 @@ $("#drawerClose").onclick = closeDrawer;
 new ResizeObserver(() => document.documentElement.style.setProperty("--barH", $("#bar").offsetHeight + "px")).observe($("#bar"));
 qIn.addEventListener("keydown", e => { if (e.key === "Enter"){ qIn.blur(); closeDrawer(); } });
 document.addEventListener("click", e => {
-  if (e.target.closest("#sideNav [data-k], [data-editcats], [data-import], [data-dw], [data-editdrawers], .side [data-add], #sortBtn, #selBtn")) closeDrawer();
+  if (e.target.closest("#sideNav [data-k], [data-editcats], [data-import], [data-backup], [data-dw], [data-editdrawers], .side [data-add], #sortBtn, #selBtn")) closeDrawer();
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && document.body.classList.contains("drawer")) closeDrawer();
@@ -2780,6 +2797,79 @@ $("#imGo").onclick = async () => {
   toast(`그림 ${okI}장 · 링크 ${okL}개 가져왔어요` + (fail ? ` (${fail}개 실패)` : ""));
 };
 
+
+/* ---------- backup: move everything to another copy of this site ---------- */
+const bkModal = $("#bkModal");
+let bkBusy = false;
+const bkMsg = t => { $("#bkMsg").textContent = t || ""; };
+document.addEventListener("click", e => { if (e.target.closest("[data-backup]")){ if (!db){ toast("로그인한 상태에서만 쓸 수 있어요"); return; } bkMsg(""); bkModal.hidden = false; } });
+$("#bkDone").onclick = () => { if (!bkBusy) bkModal.hidden = true; };
+bkModal.addEventListener("click", e => { if (e.target === bkModal && !bkBusy) bkModal.hidden = true; });
+const toDataUrl = b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
+async function bkPool(items, n, fn){ let i = 0; await Promise.all(Array.from({ length:n }, async () => { while (i < items.length){ const x = items[i++]; await fn(x); } })); }
+$("#bkOut").onclick = async () => {
+  if (bkBusy || !db) return;
+  bkBusy = true; $("#bkOut").disabled = $("#bkIn").disabled = true;
+  try {
+    const docs = Object.fromEntries(rawDocs);
+    const ids = [...new Set(rawDocs.filter(([id, v]) => id.startsWith("r_") && v.asset).map(([, v]) => v.asset))];
+    const parts = ['{"app":"reference-drawer","v":1,"at":' + Date.now() + ',"docs":' + JSON.stringify(docs) + ',"blobs":{'];
+    let done = 0, fail = 0, first = true;
+    await bkPool(ids, 4, async a => {
+      try {
+        const r = await fetch("_blob/" + a); if (!r.ok) throw new Error(r.status);
+        const u = await toDataUrl(await r.blob());
+        parts.push((first ? "" : ",") + JSON.stringify(a) + ":" + JSON.stringify(u)); first = false;
+      } catch (e){ console.warn(e); fail++; }
+      bkMsg(`그림을 모으는 중이에요 ${++done} / ${ids.length}`);
+    });
+    parts.push("}}");
+    const file = new Blob(parts, { type:"application/json" });
+    const d = new Date(), name = `레퍼런스서랍-백업-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}.json`;
+    const mb = (file.size / 1048576).toFixed(1);
+    let dl = null; try { dl = await claude.use("downloads"); } catch {}
+    if (dl){
+      try { await dl.save({ filename:name, data:file }); bkMsg(`저장했어요 (${mb}MB)` + (fail ? ` · 그림 ${fail}장은 못 담았어요` : "")); }
+      catch (e){ bkMsg(e && e.code === "declined" ? "저장을 취소했어요" : "파일을 저장하지 못했어요. 다시 눌러 주세요."); }
+    } else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      bkMsg(`저장했어요 (${mb}MB)` + (fail ? ` · 그림 ${fail}장은 못 담았어요` : ""));
+    }
+  } catch (e){ console.warn(e); bkMsg("백업 파일을 만들지 못했어요. 다시 눌러 주세요."); }
+  bkBusy = false; $("#bkOut").disabled = $("#bkIn").disabled = false;
+};
+$("#bkIn").onclick = () => { if (!bkBusy) $("#bkFile").click(); };
+$("#bkFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || bkBusy) return;
+  bkBusy = true; $("#bkOut").disabled = $("#bkIn").disabled = true;
+  try {
+    bkMsg("파일을 읽는 중이에요…");
+    const B = JSON.parse(await f.text());
+    if (!B || B.app !== "reference-drawer" || !B.docs) throw new Error("bad");
+    const have = new Set(rawDocs.map(([id]) => id));
+    const entries = Object.entries(B.docs).filter(([id]) => id !== "m_setup" && (id.startsWith("m_") || !have.has(id)));
+    const metas = entries.filter(([id]) => id.startsWith("m_")), rest = entries.filter(([id]) => !id.startsWith("m_"));
+    let done = 0, ok = 0, fail = 0; const total = rest.length;
+    for (const [id, v] of metas) await db.doc(U + "/" + id).set(v);
+    await bkPool(rest, 3, async ([id, v]) => {
+      try {
+        if (id.startsWith("r_")){
+          const u = B.blobs && B.blobs[v.asset]; if (!u) throw new Error("no image");
+          const blob = dataUrlBlob(u);
+          const res = await assets.upload(blob, { type:blob.type });
+          await db.doc(U + "/" + id).set({ ...v, asset:res.id });
+        } else await db.doc(U + "/" + id).set(v);
+        ok++;
+      } catch (err){ console.warn(err); fail++; }
+      bkMsg(`옮기는 중이에요 ${++done} / ${total} — 창을 닫지 말아 주세요`);
+    });
+    bkMsg(total ? `${ok}개 옮겼어요` + (fail ? ` · ${fail}개 실패 (다시 불러오면 실패한 것만 옮겨요)` : "") : "새로 옮길 항목이 없어요");
+    refreshUsage(); scheduleArtists();
+  } catch (err){ console.warn(err); bkMsg("레퍼런스 서랍 백업 파일이 아니거나 읽지 못했어요"); }
+  bkBusy = false; $("#bkOut").disabled = $("#bkIn").disabled = false;
+};
+
 /* ---------- first visit: the page owner's old data moves into their private space; everyone else starts fresh ---------- */
 function readOnce(col){
   return new Promise(res => {
@@ -2837,6 +2927,7 @@ renderAll();
   };
   db.collection(U).onSnapshot(s => {
     const R = [], L = [], M = {};
+    rawDocs = s.docs.map(d => [d.id, d.data()]);
     s.docs.forEach(d => {
       const id = d.id, v = d.data(), k = id.slice(2);
       if (id.startsWith("r_")){ if (v.asset) R.push({ id:k, ...v }); }
